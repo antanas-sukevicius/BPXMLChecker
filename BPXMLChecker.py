@@ -2,6 +2,7 @@
 # pip install beautifulsoup4
 
 import json
+import inspect
 import re
 from bs4 import BeautifulSoup
 
@@ -31,33 +32,33 @@ class XMLChecker(object):
 
         self.nodeProcess = self.soup.select("process")[0]
         self.processName = self.nodeProcess.get("name")
-        procesDescription = self.nodeProcess.get("narrative")
-        procesPublished = self.nodeProcess.get("published")
-        procesBPversion = self.nodeProcess.get("bpversion")
-        y = {"processName": self.processName, "procesDescription": procesDescription,
-             "procesPublished": procesPublished, "procesBPversion": procesBPversion}
+        processDescription = self.nodeProcess.get("narrative")
+        processPublished = self.nodeProcess.get("published")
+        processBPversion = self.nodeProcess.get("bpversion")
+        y = {"processName": self.processName, "processDescription": processDescription,
+             "processPublished": processPublished, "processBPversion": processBPversion}
         self.dataPro.append(y)
 
     def checkMails(self):
         # regex validates mail format.
         errorMails = self.soup.find_all(
-            attrs={"expr": re.compile(r"^[a-z0-9]+[\._]?[a-z0-9]+[@]\w+[.]\w{2,3}$")})
+            attrs={"expr": re.compile(r"[^@]+@[^@]+\.[^@]+")})
         for i in errorMails:
             nodeActionName = i.find_parent("stage").get("name")
-            nodeActionPage = self.getNodePage(i).get("name")
+            nodePageName = self.getNodePage(i).get("name")
             nodeExpretion = i.get("expr")
             y = {"errType": "Mail", "risk": "0", "nodeActionName": nodeActionName,
-                 "nodeActionPage": nodeActionPage, "nodeExpretion": nodeExpretion}
+                 "nodePageName": nodePageName, "nodeExpretion": nodeExpretion}
             self.dataErr.append(y)
 
         errorMails = self.soup.find_all(
             attrs={"expression": re.compile(r"[^@]+@[^@]+\.[^@]+")})
         for i in errorMails:
             nodeActionName = i.find_parent("stage").get("name")
-            nodeActionPage = self.getNodePage(i).get("name")
+            nodePageName = self.getNodePage(i).get("name")
             nodeExpretion = i.get("expression")
             y = {"errType": "Mail", "risk": "0", "nodeActionName": nodeActionName,
-                 "nodeActionPage": nodeActionPage, "nodeExpretion": nodeExpretion}
+                 "nodePageName": nodePageName, "nodeExpretion": nodeExpretion}
             self.dataErr.append(y)
 
     def getObjects(self):
@@ -70,6 +71,7 @@ class XMLChecker(object):
             self.dataObj.append(y)
 
     def checkMandate(self):
+        print(inspect.stack()[1][3])
         errorMandatory = self.soup.select(
             "input[narrative*='mandatory' i][expr='' i]")
         for i in errorMandatory:
@@ -81,7 +83,7 @@ class XMLChecker(object):
                 nodePage = nodePage.find_previous_sibling("stage")
             nodePageName = nodePage.get("name")
             y = {"errType": "Mandatory Fields", "nodeName": nodeName,
-                 "actionName": nodeActionName, "pageNAme": nodePageName}
+                 "actionName": nodeActionName, "nodePageName": nodePageName}
             self.dataErr.append(y)
 
     def checkDescription(self):
@@ -90,7 +92,7 @@ class XMLChecker(object):
         for i in errorDescriptions:
             if i.getText() == "":
                 y = {"errType": "Description", "risk": "0",
-                     "status": i.parent.get("name")}
+                     "nodePageName": i.parent.get("name")}
                 self.dataErr.append(y)
 
     def chackStopDecition(self):
@@ -115,18 +117,17 @@ class XMLChecker(object):
 
     def checkExceptions(self):
         errorException = self.soup.select(
-            "exception:not([type='System Exception']):not([type='Business Exception'])")
+            "exception:not([type='System Exception']):not([type='Business Exception']), stage[type='Exception']:not([name='SE']):not([name='BE'])")
         for i in errorException:
             nodeName = i.get('type')
-            nodeAction = i.parent
+            nodeAction = i if i.name == "stage" else i.parent
             nodeActionName = nodeAction.get("name")
-            nodePage = nodeAction.find_previous_sibling("stage")
-            while nodePage.get("type") != "SubSheetInfo":
-                nodePage = nodePage.find_previous_sibling("stage")
-            nodePageName = nodePage.get("name")
+            nodePageName = self.getNodePage(i).get("name")
             y = {"errType": "Exception", "risk": "0", "nodePageName": nodePageName,
-                 "nodeAction": nodeActionName, "nodeName": nodeName, "status": i.get("type")}
+                 "nodeActionName": nodeActionName, "nodeName": nodeName}
             self.dataErr.append(y)
+
+
 
     def checkStartEndStages(self, checkType):
         validList = ["Start", "End"]
@@ -187,9 +188,6 @@ class XMLChecker(object):
         print(json.dumps(self.data, indent=4, sort_keys=True))
 
     def getNodePage(self, nodePage):
-      #  while nodePage.name != "stage":
-       #     nodePage = nodePage.parent
-
         nodePage = nodePage.find_previous_sibling(
             "stage", attrs={"type": "SubSheetInfo"})
         if nodePage is None:
@@ -203,10 +201,10 @@ class XMLChecker(object):
             "stage[name*='password' i][type='Data'] > datatype")
         for i in errorPasswords:
             if i.text.lower() != 'password':
-                dataItemName = i.parent.get("name")
-                dataItemPageName = self.getNodePage(i).get("name")
+                nodeName = i.parent.get("name")
+                nodePageName = self.getNodePage(i).get("name")
                 y = {"errType": "Password", "risk": "0",
-                     "dataItemName": dataItemName, "dataItemPageName": dataItemPageName}
+                     "nodeName": nodeName, "nodePageName": nodePageName}
                 self.dataErr.append(y)
 
     def checkPrePostConditions(self):
@@ -232,5 +230,5 @@ class XMLChecker(object):
         self.checkCredentials()
         self.checkWorkQueue()
         self.checkExceptions()
-        self.getObjects()
+        #self.getObjects()
         self.addToJSON()
