@@ -154,7 +154,7 @@ class XMLChecker(object):
 
     def checkPaths(self):
         errorDataItems = self.soup.find_all("initialvalue", text=re.compile(
-            r"danskenet.net\\public\\div|i:\\div", re.IGNORECASE))
+            r"company.net\\public\\div|i:\\div", re.IGNORECASE))
         for i in errorDataItems:
             dataItemValue = i.text
             dataItemName = i.parent.get("name")
@@ -164,7 +164,7 @@ class XMLChecker(object):
             self.dataErr.append(y)
 
         errorCalculations = self.soup.select(
-            "calculation[expression*='i:\\\\div' i],calculation[expression*='danskenet.net\\\\public\\\\div' i]")
+            "calculation[expression*='i:\\\\div' i],calculation[expression*='company.net\\\\public\\\\div' i]")
         for i in errorCalculations:
             calcExpression = i.get("expression")
             calcName = i.parent.get("name")
@@ -174,7 +174,7 @@ class XMLChecker(object):
             self.dataErr.append(y)
 
         errorInputs = self.soup.select(
-            "input[expr*='i:\\\\div' i],input[expr*='danskenet.net\\\\public\\\\div' i]")
+            "input[expr*='i:\\\\div' i],input[expr*='company.net\\\\public\\\\div' i]")
         for i in errorInputs:
             inputExpr = i.get("expr")
             inputName = i.get("name")
